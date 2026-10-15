@@ -38,3 +38,17 @@ visible: true,
 source: new ol.source.OSM()
 });
 basegroup.getLayers().push(osm); //add the layer to the layer group
+
+var map = new ol.Map({
+target: 'map',
+layers: [basegroup],
+view: new ol.View({
+center: latlong,
+zoom: zoomLevel
+})
+});
+
+var layerSwitcher = new ol.control.LayerSwitcher({
+tipLabel: 'Legend'
+});
+map.addControl(layerSwitcher);
