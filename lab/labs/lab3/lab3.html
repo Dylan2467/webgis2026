@@ -8,29 +8,24 @@
 <div id="map" class="map", style = "width:100%; height: 100%"></div>
 </body>
 </html>
-
 <script src="https://cdn.jsdelivr.net/npm/ol@v10.2.1/dist/ol.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.2.1/ol.css">
-
 <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol-layerswitcher/master/src/ol-
 layerswitcher.css"/>
 <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol-
 layerswitcher/master/examples/layerswitcher.css" />
 <script src="https://rawgit.com/walkermatt/ol-layerswitcher/master/dist/ol-
 layerswitcher.js"></script>
-
 <script>
 var latitude=35.306840;
 var longitude=-80.73200;
 var latlong=ol.proj.fromLonLat([longitude,latitude]);
 var zoomLevel=4;
 </script>
-
 var basegroup = new ol.layer.Group({
 'title': 'Base Maps',
 layers: []
 });
-
 var osm = new ol.layer.Tile({
 title: 'OpenStreetMap',
 type: 'base',
@@ -38,7 +33,6 @@ visible: true,
 source: new ol.source.OSM()
 });
 basegroup.getLayers().push(osm); //add the layer to the layer group
-
 var map = new ol.Map({
 target: 'map',
 layers: [basegroup],
@@ -47,7 +41,6 @@ center: latlong,
 zoom: zoomLevel
 })
 });
-
 var layerSwitcher = new ol.control.LayerSwitcher({
 tipLabel: 'Legend'
 });
