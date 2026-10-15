@@ -30,3 +30,11 @@ var basegroup = new ol.layer.Group({
 'title': 'Base Maps',
 layers: []
 });
+
+var osm = new ol.layer.Tile({
+title: 'OpenStreetMap',
+type: 'base',
+visible: true,
+source: new ol.source.OSM()
+});
+basegroup.getLayers().push(osm); //add the layer to the layer group
