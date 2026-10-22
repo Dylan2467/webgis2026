@@ -63,6 +63,48 @@ var overlaygroup = new ol.layer.Group({
 });
 overlaygroup.getLayers().push(wms1);
 overlaygroup.getLayers().push(wms2);
+    var geojsonSource1 = new ol.source.Vector({
+  url: 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/refs/heads/master/data/geojson/us-states.json',
+  format: new ol.format.GeoJSON()
+});
+
+var polygonStyle = new ol.style.Style({
+  fill: new ol.style.Fill({
+    color: 'rgba(255, 255, 255, 0)'
+  }),
+  stroke: new ol.style.Stroke({
+    color: '#FF0000',
+    width: 2
+  })
+});
+
+var geojsonLayer1 = new ol.layer.Vector({
+  title: 'US States',
+  source: geojsonSource1,
+  style: polygonStyle
+});
+overlaygroup.getLayers().push(geojsonLayer1);
+
+var geojsonSource2 = new ol.source.Vector({
+  url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+  format: new ol.format.GeoJSON()
+});
+
+var geojsonLayer2 = new ol.layer.Vector({
+  title: 'Earthquake',
+  source: geojsonSource2,
+  style: new ol.style.Style({
+    image: new ol.style.Circle({
+      radius: 5,
+      fill: new ol.style.Fill({ color: 'red' }),
+      stroke: new ol.style.Stroke({
+        color: 'black',
+        width: 1
+      })
+    })
+  })
+});
+overlaygroup.getLayers().push(geojsonLayer2);
 
     var map = new ol.Map({
       target: 'map',
