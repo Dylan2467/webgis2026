@@ -3,9 +3,8 @@
   <title>Chapter 7: Web-based Mapping Using OpenLayers </title>
   <script src="https://cdn.jsdelivr.net/npm/ol@v10.2.1/dist/ol.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.2.1/ol.css">
-  <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol-layerswitcher/master/src/ol-layerswitcher.css"/>
-  <link rel="stylesheet" href="https://rawgit.com/walkermatt/ol-layerswitcher/master/examples/layerswitcher.css" />
-  <script src="https://rawgit.com/walkermatt/ol-layerswitcher/master/dist/ol-layerswitcher.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol-layerswitcher/dist/ol-layerswitcher.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/ol-layerswitcher/dist/ol-layerswitcher.js"></script>
 </head>
 <body>
   <h3>Chapter 7: Web-based Mapping Using OpenLayers</h3>
@@ -30,15 +29,16 @@
       source: new ol.source.OSM()
     });
     basegroup.getLayers().push(osm);
+
     var googlemap = new ol.layer.Tile({
-  title: 'Google Map',
-  type: 'base',
-  visible: true,
-  source: new ol.source.XYZ({
-    url: 'https://mt{0-3}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyC7PR4Vh0l7U8Oob-1GqKwLiCUTDsGrMPk'
-  })
-});
-basegroup.getLayers().push(googlemap);
+      title: 'Google Map',
+      type: 'base',
+      visible: true,
+      source: new ol.source.XYZ({
+        url: 'https://mt{0-3}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyC7PR4Vh0l7U8Oob-1GqKwLiCUTDsGrMPk'
+      })
+    });
+    basegroup.getLayers().push(googlemap);
 
     var map = new ol.Map({
       target: 'map',
