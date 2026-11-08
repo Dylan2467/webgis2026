@@ -1,1 +1,364 @@
+<html>
+<head>
+  <title>Chapter 14: AI-Assisted Enhancements to a Web GIS Client</title>
+  <script src="https://cdn.jsdelivr.net/npm/ol@v10.2.1/dist/ol.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.2.1/ol.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol-layerswitcher/dist/ol-layerswitcher.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/ol-layerswitcher/dist/ol-layerswitcher.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
+  <!-- ===== Q2: Improved web interface styling ===== -->
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #222;
+    }
+    header {
+      background: #2c3e50;
+      color: white;
+      padding: 14px 20px;
+    }
+    header h3 { margin: 0 0 4px 0; }
+    header h4 { margin: 0; font-weight: normal; color: #cbd5e1; }
+
+    #app {
+      display: flex;
+      height: calc(100vh - 78px);
+    }
+
+    #sidebar {
+      width: 300px;
+      min-width: 260px;
+      background: #f4f6f8;
+      border-right: 1px solid #ccc;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    #sidebar h4 {
+      margin: 18px 0 6px 0;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #2c3e50;
+    }
+    #sidebar h4:first-child { margin-top: 0; }
+    #sidebar p, #sidebar label { font-size: 13px; line-height: 1.4; }
+
+    .panel {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: #2c3e50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      width: 100%;
+      margin-top: 6px;
+    }
+    button:hover { background: #1a252f; }
+    button:disabled { background: #999; cursor: not-allowed; }
+
+    select, input[type=number] {
+      width: 100%;
+      padding: 6px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    #status {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #1a7a1a;
+      min-height: 32px;
+    }
+    #status.error { color: #b00020; }
+
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h3>Chapter 14: AI-Assisted Enhancements to a Web GIS Client</h3>
+    <h4>Author: Dylan Plutyk &mdash; built on the Chapter 7 OpenLayers client</h4>
+  </header>
+
+  <div id="app">
+    <div id="sidebar">
+
+      <!-- ===== Q2: interface help text / legend ===== -->
+      <div class="panel">
+        <h4 style="margin-top:0; border:none;">Layers</h4>
+        <p>Use the layer switcher icon (top-right of the map) to toggle base maps and overlays on/off. Overlays included: elevation (WMS), land cover (WMS), US states (GeoJSON), today's earthquakes (GeoJSON), and active NWS weather alerts for NC (live geospatial web service feed).</p>
+      </div>
+
+      <!-- ===== Q4: Spatial analysis (buffer) tool ===== -->
+      <h4>Spatial Analysis: Buffer</h4>
+      <div class="panel">
+        <label for="bufferRadius">Buffer radius (km)</label>
+        <input type="number" id="bufferRadius" value="10" min="0.1" step="0.1">
+        <button id="drawBufferBtn">Draw Buffer Point</button>
+        <p style="margin-bottom:0;">Click the button, then click anywhere on the map to drop a point. A buffer polygon of the given radius will be generated around it using Turf.js.</p>
+      </div>
+
+      <!-- ===== Q5: Download button ===== -->
+      <h4>Download Spatial Data</h4>
+      <div class="panel">
+        <label for="downloadSelect">Choose a layer</label>
+        <select id="downloadSelect">
+          <option value="states">US States (GeoJSON)</option>
+          <option value="quakes">Earthquakes Today (GeoJSON)</option>
+          <option value="alerts">NC Active Weather Alerts (NWS)</option>
+          <option value="buffer">My Buffer Result</option>
+        </select>
+        <button id="downloadBtn">Download as GeoJSON</button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+
+    <div id="map" class="map"></div>
+  </div>
+
+  <script>
+    var latitude = 35.306840;
+    var longitude = -80.73200;
+    var latlong = ol.proj.fromLonLat([longitude, latitude]);
+    var zoomLevel = 4;
+
+    function setStatus(msg, isError) {
+      var el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = isError ? 'error' : '';
+    }
+
+    // ---------- Base layers (unchanged from Chapter 7) ----------
+    var basegroup = new ol.layer.Group({
+      'title': 'Base Maps',
+      layers: []
+    });
+
+    var osm = new ol.layer.Tile({
+      title: 'OpenStreetMap',
+      type: 'base',
+      visible: true,
+      source: new ol.source.OSM()
+    });
+    basegroup.getLayers().push(osm);
+
+    var googlemap = new ol.layer.Tile({
+      title: 'Google Map',
+      type: 'base',
+      visible: true,
+      source: new ol.source.XYZ({
+        url: 'https://mt{0-3}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=AIzaSyC7PR4Vh0l7U8Oob-1GqKwLiCUTDsGrMPk'
+      })
+    });
+    basegroup.getLayers().push(googlemap);
+
+    // ---------- Overlay layers (unchanged from Chapter 7) ----------
+    var wms1 = new ol.layer.Tile({
+      title: 'Elevation',
+      source: new ol.source.TileWMS({
+        url: 'https://elevation.nationalmap.gov/arcgis/services/3DEPElevation/ImageServer/WMSServer',
+        params: { 'LAYERS': '3DEPElevation:Hillshade Elevation Tinted', 'TILED': true },
+        transition: 0
+      })
+    });
+
+    var wms2 = new ol.layer.Tile({
+      title: 'Land Cover',
+      source: new ol.source.TileWMS({
+        url: 'https://www.mrlc.gov/geoserver/mrlc_display/NLCD_2021_Land_Cover_L48/wms',
+        params: { 'LAYERS': 'NLCD_2021_Land_Cover_L48', 'TILED': true },
+        transition: 0
+      })
+    });
+
+    var overlaygroup = new ol.layer.Group({
+      'title': 'Overlay',
+      layers: []
+    });
+    overlaygroup.getLayers().push(wms1);
+    overlaygroup.getLayers().push(wms2);
+
+    var geojsonSource1 = new ol.source.Vector({
+      url: 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/refs/heads/master/data/geojson/us-states.json',
+      format: new ol.format.GeoJSON()
+    });
+
+    var polygonStyle = new ol.style.Style({
+      fill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0)' }),
+      stroke: new ol.style.Stroke({ color: '#FF0000', width: 2 })
+    });
+
+    var geojsonLayer1 = new ol.layer.Vector({
+      title: 'US States',
+      source: geojsonSource1,
+      style: polygonStyle
+    });
+    overlaygroup.getLayers().push(geojsonLayer1);
+
+    var geojsonSource2 = new ol.source.Vector({
+      url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',
+      format: new ol.format.GeoJSON()
+    });
+
+    var geojsonLayer2 = new ol.layer.Vector({
+      title: 'Earthquake',
+      source: geojsonSource2,
+      style: new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 5,
+          fill: new ol.style.Fill({ color: 'red' }),
+          stroke: new ol.style.Stroke({ color: 'black', width: 1 })
+        })
+      })
+    });
+    overlaygroup.getLayers().push(geojsonLayer2);
+
+    // ---------- Q3: Added geospatial web service (live NWS weather alerts feed) ----------
+    // A new, different data source from a live government geospatial web service
+    // (National Weather Service API), returning active hazard/weather alert
+    // polygons for North Carolina as GeoJSON.
+    var alertsSource = new ol.source.Vector({
+      url: 'https://api.weather.gov/alerts/active?area=NC',
+      format: new ol.format.GeoJSON()
+    });
+
+    var alertsLayer = new ol.layer.Vector({
+      title: 'NC Active Weather Alerts (NWS)',
+      source: alertsSource,
+      style: new ol.style.Style({
+        fill: new ol.style.Fill({ color: 'rgba(255, 0, 255, 0.15)' }),
+        stroke: new ol.style.Stroke({ color: '#CC00CC', width: 2 })
+      })
+    });
+    overlaygroup.getLayers().push(alertsLayer);
+
+    // ---------- Q4: Buffer analysis layer ----------
+    var bufferSource = new ol.source.Vector();
+    var bufferLayer = new ol.layer.Vector({
+      title: 'Buffer Analysis',
+      source: bufferSource,
+      style: new ol.style.Style({
+        fill: new ol.style.Fill({ color: 'rgba(255, 165, 0, 0.25)' }),
+        stroke: new ol.style.Stroke({ color: 'orange', width: 2 })
+      })
+    });
+
+    // ---------- Map ----------
+    var map = new ol.Map({
+      target: 'map',
+      layers: [basegroup, overlaygroup, bufferLayer],
+      view: new ol.View({
+        center: latlong,
+        zoom: zoomLevel
+      })
+    });
+
+    var layerSwitcher = new ol.control.LayerSwitcher({ tipLabel: 'Legend' });
+    map.addControl(layerSwitcher);
+
+    // ================= Q4: Buffer tool logic =================
+    var drawInteraction = null;
+    var lastBufferGeoJSON = null;
+
+    document.getElementById('drawBufferBtn').addEventListener('click', function () {
+      if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
+      }
+      drawInteraction = new ol.interaction.Draw({
+        source: new ol.source.Vector(), // temp source, we only need the geometry
+        type: 'Point'
+      });
+      map.addInteraction(drawInteraction);
+      setStatus('Click anywhere on the map to place your buffer point...', false);
+
+      drawInteraction.on('drawend', function (evt) {
+        try {
+          var radiusKm = parseFloat(document.getElementById('bufferRadius').value) || 10;
+          var coord3857 = evt.feature.getGeometry().getCoordinates();
+          var coordLonLat = ol.proj.toLonLat(coord3857);
+
+          var pt = turf.point(coordLonLat);
+          var buffered = turf.buffer(pt, radiusKm, { units: 'kilometers' });
+
+          // Clear previous buffer result, add the new one
+          bufferSource.clear();
+          var geojsonFormat = new ol.format.GeoJSON();
+          var olFeature = geojsonFormat.readFeature(buffered, {
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857'
+          });
+          bufferSource.addFeature(olFeature);
+          lastBufferGeoJSON = buffered;
+
+          var areaKm2 = (turf.area(buffered) / 1000000).toFixed(2);
+          setStatus('Buffer created: ' + radiusKm + ' km radius (~' + areaKm2 + ' km² area).', false);
+        } catch (err) {
+          setStatus('Error creating buffer: ' + err.message, true);
+        }
+
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
+      });
+    });
+
+    // ================= Q5: Download tool logic =================
+    function downloadGeoJSONFromSource(source, filename) {
+      var features = source.getFeatures();
+      if (!features || features.length === 0) {
+        setStatus('That layer has no features loaded yet (it may still be fetching, or you need to create a buffer first).', true);
+        return;
+      }
+      var geojsonFormat = new ol.format.GeoJSON();
+      var geojsonText = geojsonFormat.writeFeatures(features, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      });
+      var blob = new Blob([geojsonText], { type: 'application/geo+json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus('Downloaded ' + filename + ' (' + features.length + ' feature(s)).', false);
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', function () {
+      var choice = document.getElementById('downloadSelect').value;
+      if (choice === 'states') {
+        downloadGeoJSONFromSource(geojsonSource1, 'us_states.geojson');
+      } else if (choice === 'quakes') {
+        downloadGeoJSONFromSource(geojsonSource2, 'earthquakes_today.geojson');
+      } else if (choice === 'alerts') {
+        downloadGeoJSONFromSource(alertsSource, 'nc_weather_alerts.geojson');
+      } else if (choice === 'buffer') {
+        if (!lastBufferGeoJSON) {
+          setStatus('No buffer created yet — use the buffer tool above first.', true);
+          return;
+        }
+        downloadGeoJSONFromSource(bufferSource, 'my_buffer_result.geojson');
+      }
+    });
+  </script>
+</body>
+</html>
